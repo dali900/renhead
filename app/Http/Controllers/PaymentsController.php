@@ -5,34 +5,10 @@ namespace App\Http\Controllers;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 use App\Http\Resources\PaymentResource;
+use App\Http\Resources\PaymentResourcePaginated;
 
 class PaymentsController extends Controller
 {
-
-    /**
-     * Store a newly created resource in storage.
-     *
-     * @param  \Illuminate\Http\Request  $request
-     * @return \Illuminate\Http\Response
-     */
-    public function store(Request $request)
-    {
-        $request->validate([
-            'user_id' => 'required|numeric',
-            'total_amount' => 'required|number',
-        ]);
-
-        $data = $request->only(['user_id', 'total_amount']);
-        $payment = Payment::create($data);
-        if(!$payment){
-            return $this->responseErrorCreatingModel();
-        }
-
-        return $this->responseSuccess([
-            'payment' => PaymentResource::make($payment)
-        ]);
-    }
-
     /**
      * Display the specified resource.
      *
@@ -56,12 +32,36 @@ class PaymentsController extends Controller
      *
      * @return \Illuminate\Http\Response
      */
-    public function getPayments()
+    public function getPayments(Request $request)
     {
-        $payments = Payment::all();
+        $payments = Payment::with('user')->paginate($request->perPage ?? 100);
 
         return $this->responseSuccess([
-            'payments' => PaymentResource::collection($payments)
+            'payments' => PaymentResourcePaginated::make($payments)
+        ]);
+    }
+
+    /**
+     * Store a newly created resource in storage.
+     *
+     * @param  \Illuminate\Http\Request  $request
+     * @return \Illuminate\Http\Response
+     */
+    public function store(Request $request)
+    {
+        $request->validate([
+            'user_id' => 'required|numeric',
+            'total_amount' => 'required|numeric',
+        ]);
+
+        $data = $request->only(['user_id', 'total_amount']);
+        $payment = Payment::create($data);
+        if(!$payment){
+            return $this->responseErrorCreatingModel();
+        }
+
+        return $this->responseSuccess([
+            'payment' => PaymentResource::make($payment)
         ]);
     }
 
@@ -81,12 +81,12 @@ class PaymentsController extends Controller
 
         $request->validate([
             'user_id' => 'sometimes|required|numeric',
-            'total_amount' => 'sometimes|required|number',
+            'total_amount' => 'sometimes|required|numeric',
         ]);
 
         $data = $request->only(['user_id', 'total_amount']);
-        $payment = Payment::update($data);
-        if(!$payment){
+        $updated = $payment->update($data);
+        if(!$updated){
             return $this->responseErrorCreatingModel();
         }
 
